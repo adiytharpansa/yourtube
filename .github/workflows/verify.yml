@@ -1,0 +1,60 @@
+name: Verify in Emulator
+on:
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with: { distribution: temurin, java-version: "17" }
+      - uses: gradle/actions/setup-gradle@v6
+        with: { gradle-version: "8.10.2" }
+      - name: Build debug APK
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Run app in emulator and try playing a video
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: |
+            adb install -r app/build/outputs/apk/debug/app-debug.apk
+            adb shell am start -n com.app.yourtube/.MainActivity
+            sleep 50
+            adb exec-out screencap -p > home.png || true
+            adb shell uiautomator dump /sdcard/home.xml || true
+            adb pull /sdcard/home.xml home.xml || true
+            adb shell input tap 540 620
+            sleep 35
+            adb exec-out screencap -p > player1.png || true
+            sleep 10
+            adb exec-out screencap -p > player2.png || true
+            adb shell uiautomator dump /sdcard/player.xml || true
+            adb pull /sdcard/player.xml player.xml || true
+            adb logcat -d > logcat.txt || true
+            pip install -q pillow
+            python3 - << 'EOF'
+            from PIL import Image, ImageChops
+            try:
+                a=Image.open("player1.png").convert("L"); b=Image.open("player2.png").convert("L")
+                diff=ImageChops.difference(a,b)
+                px=list(diff.getdata()); changed=sum(1 for v in px if v>16)/len(px)*100
+                open("frame-diff.txt","w").write(f"changed_pixels_percent={changed:.2f}\n")
+                h=Image.open("home.png").convert("L"); hp=list(h.getdata())
+                open("frame-diff.txt","a").write(f"home_mean_brightness={sum(hp)/len(hp):.1f}\n")
+            except Exception as e:
+                open("frame-diff.txt","w").write(f"diff_error={e}\n")
+            EOF
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with: { name: emulator-verify, path: "{home.png,player1.png,player2.png,home.xml,player.xml,logcat.txt,frame-diff.txt}" }
