@@ -29,12 +29,18 @@ jobs:
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           script: |
             adb install -r app/build/outputs/apk/debug/app-debug.apk
+            adb shell pm grant com.app.yourtube android.permission.POST_NOTIFICATIONS || true
             adb shell am start -n com.app.yourtube/.MainActivity
-            sleep 50
+            sleep 40
             adb exec-out screencap -p > home.png || true
+            adb shell input tap 420 1498
+            sleep 2
+            adb shell input tap 540 2227
+            sleep 25
+            adb exec-out screencap -p > feed.png || true
             adb shell uiautomator dump /sdcard/home.xml || true
             adb pull /sdcard/home.xml home.xml || true
-            adb shell input tap 540 620
+            adb shell input tap 540 700
             sleep 35
             adb exec-out screencap -p > player1.png || true
             sleep 10
@@ -42,7 +48,7 @@ jobs:
             adb shell uiautomator dump /sdcard/player.xml || true
             adb pull /sdcard/player.xml player.xml || true
             adb logcat -d > logcat.txt || true
-            ls -la home.png player1.png player2.png home.xml player.xml logcat.txt || true
+            ls -la home.png feed.png player1.png player2.png home.xml player.xml logcat.txt || true
       - name: Compare player frames
         if: always()
         run: |
@@ -55,6 +61,7 @@ jobs:
           name: emulator-verify
           path: |
             home.png
+            feed.png
             player1.png
             player2.png
             home.xml
