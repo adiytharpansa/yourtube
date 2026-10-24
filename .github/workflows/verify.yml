@@ -31,8 +31,16 @@ jobs:
             adb install -r app/build/outputs/apk/debug/app-debug.apk
             adb shell pm grant com.app.yourtube android.permission.POST_NOTIFICATIONS || true
             adb shell am start -n com.app.yourtube/.MainActivity
-            sleep 40
+            sleep 45
             adb exec-out screencap -p > home.png || true
+            adb shell uiautomator dump /sdcard/d.xml || true
+            adb pull /sdcard/d.xml d.xml || true
+            grep -q "responding" d.xml && adb shell input tap 430 1368 || true
+            sleep 5
+            adb shell uiautomator dump /sdcard/d.xml || true
+            adb pull /sdcard/d.xml d.xml || true
+            grep -q "responding" d.xml && adb shell input tap 430 1368 || true
+            sleep 5
             adb shell input tap 420 1498
             sleep 2
             adb shell input tap 540 2227
