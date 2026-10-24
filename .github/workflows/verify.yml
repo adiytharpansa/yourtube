@@ -42,19 +42,22 @@ jobs:
             adb shell uiautomator dump /sdcard/player.xml || true
             adb pull /sdcard/player.xml player.xml || true
             adb logcat -d > logcat.txt || true
-            pip install -q pillow
-            python3 - << 'EOF'
-            from PIL import Image, ImageChops
-            try:
-                a=Image.open("player1.png").convert("L"); b=Image.open("player2.png").convert("L")
-                diff=ImageChops.difference(a,b)
-                px=list(diff.getdata()); changed=sum(1 for v in px if v>16)/len(px)*100
-                open("frame-diff.txt","w").write(f"changed_pixels_percent={changed:.2f}\n")
-                h=Image.open("home.png").convert("L"); hp=list(h.getdata())
-                open("frame-diff.txt","a").write(f"home_mean_brightness={sum(hp)/len(hp):.1f}\n")
-            except Exception as e:
-                open("frame-diff.txt","w").write(f"diff_error={e}\n")
-            EOF
+            ls -la home.png player1.png player2.png home.xml player.xml logcat.txt || true
+      - name: Compare player frames
+        if: always()
+        run: |
+          pip install -q pillow
+          python3 tools/frame_diff.py || true
+          cat frame-diff.txt || true
       - uses: actions/upload-artifact@v7
         if: always()
-        with: { name: emulator-verify, path: "{home.png,player1.png,player2.png,home.xml,player.xml,logcat.txt,frame-diff.txt}" }
+        with:
+          name: emulator-verify
+          path: |
+            home.png
+            player1.png
+            player2.png
+            home.xml
+            player.xml
+            logcat.txt
+            frame-diff.txt
