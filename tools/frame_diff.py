@@ -18,6 +18,10 @@ try:
     h = Image.open("home.png").convert("L")
     hp = list(h.getdata())
     out.append(f"home_mean_brightness={sum(hp) / len(hp):.1f}")
+    import os
+    if os.path.exists("feed.png"):
+        f = Image.open("feed.png").convert("L"); fp = list(f.getdata())
+        out.append(f"feed_mean_brightness={sum(fp) / len(fp):.1f}")
     p = Image.open("player1.png").convert("L")
     pp = list(p.getdata())
     out.append(f"player_mean_brightness={sum(pp) / len(pp):.1f}")
